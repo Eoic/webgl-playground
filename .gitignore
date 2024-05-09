@@ -1,0 +1,13 @@
+# API keys and secrets.
+.env
+
+# Dependencies.
+node_modules
+
+# Build files.
+dist/**/*
+!.gitkeep
+
+# Editors.
+.vscode
+.idea
