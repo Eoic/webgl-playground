@@ -24,6 +24,10 @@ const config = {
           'css-loader',
           'sass-loader'
         ]
+      },
+      {
+        test: /\.glsl$/,
+        loader: 'webpack-glsl-loader'
       }
     ]
   },
