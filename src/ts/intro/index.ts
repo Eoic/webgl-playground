@@ -1,8 +1,6 @@
 import '../scss/styles.scss';
-
-import { m3 } from './matrix';
-const vertexShaderSource = require('../shaders/transformations/vertex.glsl');
-const fragmentShaderSource = require('../shaders/transformations/fragment.glsl');
+const vertexShaderSource = require('../shaders/intro/vertex.glsl');
+const fragmentShaderSource = require('../shaders/intro/fragment.glsl');
 
 const resizeCanvasToDisplaySize = (canvas: HTMLCanvasElement): boolean => {
     // Lookup the size the browser is displaying the canvas in CSS pixels.
@@ -62,50 +60,45 @@ const updateViewport = (context: WebGL2RenderingContext) => {
 }
 
 let scale = [1, 1];
+let rotation = [0, 1];
 let rotationDegrees = 0;
 let color = [Math.random(), Math.random(), Math.random(), 1];
-const translation = [250, 250];
+const translation = [100, 100];
 const positions = [
     0, 0, 500, 0, 500, 500,
     0, 0, 0, 500, 500, 500,
 ];
 
-const computeTransform = (context: WebGL2RenderingContext): Array<number> => {
-    let moveOriginMatrix = m3.translation(-250, -250);
-    let projectionMatrix = m3.projection((context.canvas as HTMLCanvasElement).clientWidth, (context.canvas as HTMLCanvasElement).clientHeight);
-    let translationMatrix = m3.translation(translation[0], translation[1]);
-    let rotationMatrix = m3.rotation(rotationDegrees);
-    let scalingMatrix = m3.scaling(scale[0], scale[1]);
-    let matrix = m3.multiply(projectionMatrix, translationMatrix)
-    matrix = m3.multiply(matrix, rotationMatrix);
-    matrix = m3.multiply(matrix, scalingMatrix);
-    matrix = m3.multiply(matrix, moveOriginMatrix);
-    return matrix;
-}
-
-// let matrix = computeTransform();
-
 const renderClosure = (
     context: WebGL2RenderingContext,
     program: WebGLProgram,
+    uResolutionLoc: WebGLUniformLocation,
     uColorLoc: WebGLUniformLocation,
-    uMatrixLoc: WebGLUniformLocation,
+    uTranslationLoc: WebGLUniformLocation,
+    uRotationLoc: WebGLUniformLocation,
+    uScaleLoc: WebGLUniformLocation
 ) => {
     return () => {
-        const matrix = computeTransform(context);
-
         updateViewport(context);
         context.clearColor(0, 0, 0, 0);
         context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BUFFER_BIT);
         context.useProgram(program);
+        context.uniform2f(uResolutionLoc, context.canvas.width, context.canvas.height);
         context.uniform4fv(uColorLoc, color);
-        context.uniformMatrix3fv(uMatrixLoc, false, matrix);
+        context.uniform2fv(uTranslationLoc, translation);
+        context.uniform2fv(uRotationLoc, rotation);
+        context.uniform2fv(uScaleLoc, scale);
 
         const count = 6;
         const offset = 0;
         const primitiveType = context.TRIANGLES;
         context.drawArrays(primitiveType, offset, count);
     }
+}
+
+const getRotationUnitVec = (degrees: number) => {
+    const radians = degrees * Math.PI / 180;
+    return [Math.sin(radians), Math.cos(radians)];
 }
 
 const main = () => {
@@ -129,8 +122,11 @@ const main = () => {
         const program = createProgram(context, vertexShader, fragmentShader);
 
         const positionAttribLocation = context.getAttribLocation(program, 'a_position');
+        const resolutionUniformLocation = context.getUniformLocation(program, 'u_resolution');
         const colorUniformLocation = context.getUniformLocation(program, 'u_color');
-        const matrixUniformLocation = context.getUniformLocation(program, 'u_matrix');
+        const translationUniformLocation = context.getUniformLocation(program, 'u_translation');
+        const rotationUniformLocation = context.getUniformLocation(program, 'u_rotation');
+        const scaleUniformLocation = context.getUniformLocation(program, 'u_scale');
         const positionBuffer = context.createBuffer();
 
         context.bindBuffer(context.ARRAY_BUFFER, positionBuffer);
@@ -152,8 +148,11 @@ const main = () => {
         return renderClosure(
             context,
             program,
+            resolutionUniformLocation!,
             colorUniformLocation!,
-            matrixUniformLocation!
+            translationUniformLocation!,
+            rotationUniformLocation!,
+            scaleUniformLocation!,
         );
     } catch (error) {
         console.error(error);
@@ -200,6 +199,7 @@ const bindEvents = (render: () => void) => {
                 return;
         }
 
+        rotation = getRotationUnitVec(rotationDegrees);
         render();
     });
 }
